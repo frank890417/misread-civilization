@@ -1,6 +1,6 @@
-import { MODELS, GENERIC_MISREADS } from './models.js?v=20260619-refactor3';
-import { SoundEngine } from './sound.js?v=20260619-refactor3';
-import { createScene } from './scene.js?v=20260619-refactor3';
+import { MODELS, GENERIC_MISREADS } from './models.js?v=20260619-refactor4';
+import { SoundEngine } from './sound.js?v=20260619-refactor4';
+import { createScene } from './scene.js?v=20260619-refactor4';
 
 const $ = (id) => document.getElementById(id);
 
@@ -46,8 +46,7 @@ $('b-sound')?.addEventListener('click', () => {
   toggleButton('b-sound', soundEnabled);
 });
 
-$('b-resonate')?.addEventListener('click', async () => {
-  if (soundEnabled && !SoundEngine.isStarted()) await SoundEngine.start();
+$('b-resonate')?.addEventListener('click', () => {
   scene.resonate();
 });
 

@@ -217,7 +217,11 @@ export function createScene({ models, sound, isSoundEnabled = () => true }) {
   function resonate() {
     resonanceFlash = 1.0;
     stones.forEach(st => { if (st.state !== 'out') { st.glow = 1.0; const d = st.mesh.position.clone().normalize(); st.vel.add(d.multiplyScalar(0.5)); } });
-    sound.chime();
+    if (isSoundEnabled()) {
+      sound.start()
+        .then(() => sound.chime())
+        .catch((err) => console.warn('sound chime failed', err));
+    }
     misread('⟡ 共 鳴 ⟡  文明短暫地被聽懂了');
   }
 
