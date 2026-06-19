@@ -82,6 +82,7 @@ python3 -m http.server 8123 --bind 127.0.0.1
 - 近景：可點擊的 3D 漂浮石。
 - 遠景：`assets/hdri/sky.png` 作為 equirect sky sphere，同時提供環境光。
 - 石頭材質統一壓成霧面：`roughness 0.97`、低 `envMapIntensity`，避免太亮或太塑膠。
+- 底部工具列使用全寬 scrim 漸層，確保亮天空背景下控制列與提示文字都可讀。
 
 ### 2. 更多石頭與動態族群
 
