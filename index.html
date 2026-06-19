@@ -196,16 +196,17 @@ const MODELS = [
 // ============================================================================
 const SoundEngine = (()=>{
   let started=false, muted=false;
-  let busGain, reverb, padFilter, pad, drone, emerge, choir, cantor, glitchSynth;
+  let busGain, reverb, padFilter, pad, drone, emerge, choir, cantor, glitchSynth, grain, eq;
   const voices = {};               // voiceId -> Tone instrument
   // D Dorian：中古調式。b7（C）是教堂感關鍵 → 和絃聲位與旋律都凸顯它
   const DORIAN = ['D','E','F','G','A','B','C'];
-  // 雙主和 D ↔ C（中世紀 double tonic）；每個和絃上方掛 b7（C）讓它持續鳴響
+  // 以 D 為中心的 Dorian 和聲：哲宇的 re-fa-la-do（Dm7）+ 關鍵第 6 音 ti（B）。
+  // B（大六度）= Dorian 招牌色＝教堂感來源，所以每個和絃都含 B。
   const PROG = [
-    ['D3','A3','F4','C5'],   // Dm7（C5 = b7）
-    ['C3','G3','E4','B4'],   // C（bVII）
-    ['D3','A3','C5','E5'],   // Dm9
-    ['F3','C4','A4','C5'],   // F（C 仍在）
+    ['D3','A3','F4','B4'],   // Dm6 — re fa la + 第6音 ti(B)
+    ['D3','A3','B4','C5'],   // Dm6/7 — 6(B) + 7(C) 一起＝Dorian 全色
+    ['G3','D4','F4','B4'],   // IV 色（G B D F），B 持續
+    ['A3','E4','F4','B4'],   // v 色（A E G B…），B 持續
   ];
   // 哲宇指定聖詠動機：D Dorian 級數 2-4-6-6-[7]-6-5-6 → E G B B C B A B；[7]=C 拉長加重
   const CHANT = ['E4','G4','B4','B4','C5','B4','A4','B4'];
@@ -221,7 +222,7 @@ const SoundEngine = (()=>{
       case 'pluck':     v=new Tone.PluckSynth({attackNoise:1.2,dampening:2600,resonance:0.92,volume:-4}); break;
       case 'organLow':  v=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.04,decay:0.6,sustain:0.5,release:2.4},volume:-16}); break;
       case 'am':        v=new Tone.AMSynth({harmonicity:2.0,envelope:{attack:0.02,decay:0.8,sustain:0.2,release:1.6},volume:-12}); break;
-      case 'air':       v=new Tone.MonoSynth({oscillator:{type:'square'},filter:{Q:2,type:'lowpass'},filterEnvelope:{attack:0.06,decay:0.3,sustain:0.1,release:1.2,baseFrequency:600,octaves:3},envelope:{attack:0.05,decay:0.6,sustain:0.05,release:1.4},volume:-18}); break;
+      case 'air':       v=new Tone.MonoSynth({oscillator:{type:'triangle'},filter:{Q:0.8,type:'lowpass'},filterEnvelope:{attack:0.08,decay:0.4,sustain:0.1,release:1.4,baseFrequency:380,octaves:1.6},envelope:{attack:0.06,decay:0.6,sustain:0.05,release:1.6},volume:-19}); break;
       case 'duo':       v=new Tone.DuoSynth({vibratoAmount:0.3,harmonicity:1.5,voice0:{envelope:{attack:0.05,decay:0.4,sustain:0.3,release:1.5}},voice1:{envelope:{attack:0.08,decay:0.4,sustain:0.3,release:1.5}},volume:-18}); break;
       case 'bellLow':   v=new Tone.FMSynth({harmonicity:1.41,modulationIndex:5,envelope:{attack:0.005,decay:2.2,sustain:0,release:2.4},volume:-10}); break;
       default:          v=new Tone.Synth({volume:-10});
@@ -237,7 +238,9 @@ const SoundEngine = (()=>{
     const limiter = new Tone.Limiter(-1).toDestination();
     reverb = new Tone.Reverb({ decay: 11, preDelay: 0.05, wet: 0.5 }).connect(limiter);
     try{ await reverb.ready; }catch(e){}
-    busGain = new Tone.Gain(0.8).connect(reverb);
+    // 主鏈高頻整體削減（去掉三角/方波的尖銳）
+    eq = new Tone.EQ3({ low:0, mid:-1, high:-5, lowFrequency:250, highFrequency:3500 }).connect(reverb);
+    busGain = new Tone.Gain(0.8).connect(eq);
 
     // 1. 教堂和絃床（柔鋸齒 → 低通 → 慢 ADSR）
     padFilter = new Tone.Filter(1200,'lowpass').connect(busGain);
@@ -269,12 +272,19 @@ const SoundEngine = (()=>{
     emerge = new Tone.FMSynth({ harmonicity:3.01, modulationIndex:6,
       envelope:{attack:0.004,decay:1.8,sustain:0,release:2.0}, volume:-18 }).connect(busGain);
 
-    // 6. glitch 人聲（母音方波 → bitcrush，stutter 爆發 = AI 誤讀扭曲我們的聲音）
-    const glitchFormant = new Tone.Filter({type:'bandpass', frequency:1100, Q:1.0});
-    const glitchCrush = new Tone.BitCrusher(4);
+    // 6. glitch 人聲（母音方波 → bitcrush → 低通圓滑，stutter 爆發 = AI 誤讀扭曲我們的聲音）
+    const glitchFormant = new Tone.Filter({type:'bandpass', frequency:1000, Q:1.0});
+    const glitchCrush = new Tone.BitCrusher(5);
+    const glitchTame = new Tone.Filter({type:'lowpass', frequency:3000, Q:0.5});
     glitchSynth = new Tone.Synth({ oscillator:{type:'square'},
-      envelope:{attack:0.001,decay:0.06,sustain:0,release:0.05}, volume:-17 });
-    glitchSynth.chain(glitchFormant, glitchCrush, busGain);
+      envelope:{attack:0.001,decay:0.06,sustain:0,release:0.05}, volume:-18 });
+    glitchSynth.chain(glitchFormant, glitchCrush, glitchTame, busGain);
+
+    // 7. 碎碎音粒（碰小石頭 → 快速連續小音粒，D Dorian 高音，過低通不刺）
+    const grainTame = new Tone.Filter({type:'lowpass', frequency:3000, Q:0.5});
+    grain = new Tone.Synth({ oscillator:{type:'triangle'},
+      envelope:{attack:0.001, decay:0.05, sustain:0, release:0.04}, volume:-15 });
+    grain.chain(grainTame, busGain);
 
     // ===== 排程 =====
     // 和絃 + 合唱同步走 PROG（合唱唱上三聲位，含 b7）
@@ -320,7 +330,19 @@ const SoundEngine = (()=>{
     try{
       const dur = (def.voice==='marimba'||def.voice==='pluck'||def.voice==='metal') ? '8n' : '2n';
       v.triggerAttackRelease(note, dur, undefined, 0.85);
+      if(layerUp) crumble();   // 小石頭（天空層）→ 額外快速碎碎音粒
     }catch(e){ console.warn('voice err', def.voice, e); }
+  }
+
+  // 碎碎：快速連續的小音粒（碰小石頭觸發）
+  function crumble(){
+    if(!started || muted || !grain) return;
+    const reps = 9 + (Math.random()*8|0);   // 9–16 顆
+    for(let i=0;i<reps;i++){
+      const note = DORIAN[(Math.random()*7)|0] + (5 + ((Math.random()*2)|0));
+      const t = `+${(i*0.032*(0.7+Math.random()*0.7)).toFixed(3)}`;
+      grain.triggerAttackRelease(note, '32n', t, 0.3+Math.random()*0.4);
+    }
   }
 
   function chime(){ // 共鳴：合唱湧現 + 鐘聲撒一把和絃
