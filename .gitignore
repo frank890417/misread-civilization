@@ -1,0 +1,15 @@
+# FBX 源檔（539MB）不進 repo —— 已壓成 assets/glb 的 GLB
+assets/models/
+
+# 未使用的參考圖 / 多餘 HDRI
+assets/ref/
+assets/hdri/260530 HDRI - 1.png
+assets/hdri/260530 HDRI - 2.png
+
+# 轉檔暫存
+**/_raw.glb
+*_raw.glb
+
+# 系統 / 工具
+.DS_Store
+.claude/
