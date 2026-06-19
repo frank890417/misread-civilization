@@ -8,6 +8,9 @@ let soundEnabled = true;
 let spinEnabled = true;
 let skyEnabled = true;
 let scatterEnabled = false;
+let specTouched = false;
+
+const AUTO_SPEC_COLLAPSE_MS = 5000;
 
 const scene = createScene({
   models: MODELS,
@@ -20,6 +23,13 @@ scene.setGenericMisreads(GENERIC_MISREADS);
 function toggleButton(id, on) {
   const btn = $(id);
   if (btn) btn.classList.toggle('on', on);
+}
+
+function setSpecHidden(hidden) {
+  const spec = $('spec');
+  const btn = $('b-spec');
+  spec?.classList.toggle('hidden', hidden);
+  if (btn) btn.textContent = hidden ? '顯示說明' : '隱藏說明';
 }
 
 $('b-spin')?.addEventListener('click', () => {
@@ -51,11 +61,12 @@ $('b-resonate')?.addEventListener('click', () => {
 });
 
 $('b-spec')?.addEventListener('click', () => {
-  const spec = $('spec');
-  const btn = $('b-spec');
-  const hidden = !spec?.classList.contains('hidden');
-  spec?.classList.toggle('hidden', hidden);
-  if (btn) btn.textContent = hidden ? '顯示說明' : '隱藏說明';
+  specTouched = true;
+  setSpecHidden(!$('spec')?.classList.contains('hidden'));
 });
+
+setTimeout(() => {
+  if (!specTouched) setSpecHidden(true);
+}, AUTO_SPEC_COLLAPSE_MS);
 
 scene.boot();
