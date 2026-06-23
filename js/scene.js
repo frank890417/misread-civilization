@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -60,9 +61,14 @@ export function createScene({ models, sound, isSoundEnabled = () => true }) {
 
   // ---- GLB 載入（meshopt + webp）----
   const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const protoCache = {};   // id -> { obj } 原型（lazy，載一次重用）
+  loader.setMeshoptDecoder(MeshoptDecoder);            // HD（assets/glb）用 meshopt 幾何
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/libs/draco/');
+  loader.setDRACOLoader(dracoLoader);                  // 輕量（assets/glb-lite）用 draco 幾何
+  const protoCache = {};   // `${quality}:${id}` -> { obj }（lazy，兩種畫質各自快取，切回不重載）
   const barI = document.querySelector('#bar i');
+  let quality = 'hd';      // 'hd' = assets/glb；'lite' = assets/glb-lite（29 顆合計 <5MB）
+  const modelPath = (model) => quality === 'lite' ? model.glb.replace('assets/glb/', 'assets/glb-lite/') : model.glb;
 
   function matte(mt) {
     if (!mt) return;
@@ -81,18 +87,19 @@ export function createScene({ models, sound, isSoundEnabled = () => true }) {
     return wrap;
   }
   function loadModel(model) {
-    if (protoCache[model.id]) return Promise.resolve(protoCache[model.id]);
+    const key = quality + ':' + model.id;
+    if (protoCache[key]) return Promise.resolve(protoCache[key]);
     return new Promise((resolve) => {
-      loader.load(model.glb, (gltf) => {
+      loader.load(modelPath(model), (gltf) => {
         const obj = gltf.scene;
         obj.traverse(c => { if (c.isMesh) {
           c.castShadow = c.receiveShadow = false;
           (Array.isArray(c.material) ? c.material : [c.material]).forEach(matte);
         }});
         const proto = { obj: normalize(obj) };
-        protoCache[model.id] = proto;
+        protoCache[key] = proto;
         resolve(proto);
-      }, undefined, (err) => { console.warn('load fail', model.id, err); resolve(null); });
+      }, undefined, (err) => { console.warn('load fail', modelPath(model), err); resolve(null); });
     });
   }
 
@@ -264,7 +271,7 @@ export function createScene({ models, sound, isSoundEnabled = () => true }) {
 
   // ---- boot：先載少量種類、clone 出密度 → 啟動 animate + 族群換血 ----
   let driftTimer = null;
-  async function boot() {
+  async function loadInitialAndBuild(entering) {
     const loadlog = $('loadlog');
     const initialModels = models.slice(0, INITIAL_UNIQUE);
     const loaded = [];
@@ -277,12 +284,23 @@ export function createScene({ models, sound, isSoundEnabled = () => true }) {
     }
     for (let i = 0; i < INITIAL_POP && loaded.length; i++) {
       const pick = loaded[i] || loaded[(Math.random() * loaded.length) | 0];
-      makeStone(pick.proto, pick.model, makeSlot(), false);
+      makeStone(pick.proto, pick.model, makeSlot(), entering);
     }
+  }
+  async function boot() {
+    await loadInitialAndBuild(false);
     const ld = $('loader'); if (ld) { ld.style.opacity = '0'; setTimeout(() => ld.style.display = 'none', 800); }
     animate();
     const tick = () => { driftTick(); driftTimer = setTimeout(tick, DRIFT_MS + Math.random() * 2600); };
     driftTimer = setTimeout(tick, DRIFT_MS);
+  }
+  // 切換畫質：清掉現有石頭，用新畫質重建初始族群（animate + 族群換血持續運作）
+  async function setQuality(mode) {
+    if (mode === quality) return;
+    quality = mode;
+    for (let i = stones.length - 1; i >= 0; i--) { disposeStone(stones[i]); stones.splice(i, 1); }
+    updateCount();
+    await loadInitialAndBuild(true);   // entering=true → 新石頭淡入
   }
 
   // ---- 控制 API（給 main.js 接按鈕）----
@@ -293,5 +311,6 @@ export function createScene({ models, sound, isSoundEnabled = () => true }) {
     setSky(on) { skyOn = on; scene.background = (on && skyTex) ? skyTex : new THREE.Color(0x0c0f15); },
     resonate,
     setGenericMisreads,
+    setQuality,
   };
 }

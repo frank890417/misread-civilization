@@ -1,6 +1,6 @@
-import { MODELS, GENERIC_MISREADS } from './models.js?v=20260619-refactor4';
-import { SoundEngine } from './sound.js?v=20260619-refactor4';
-import { createScene } from './scene.js?v=20260619-refactor4';
+import { MODELS, GENERIC_MISREADS } from './models.js?v=20260619-lite2';
+import { SoundEngine } from './sound.js?v=20260619-lite2';
+import { createScene } from './scene.js?v=20260619-lite2';
 
 const $ = (id) => document.getElementById(id);
 
@@ -8,6 +8,7 @@ let soundEnabled = true;
 let spinEnabled = true;
 let skyEnabled = true;
 let scatterEnabled = false;
+let liteMode = false;
 let specTouched = false;
 
 const AUTO_SPEC_COLLAPSE_MS = 5000;
@@ -48,6 +49,14 @@ $('b-ring')?.addEventListener('click', () => {
   scatterEnabled = !scatterEnabled;
   scene.setScatter(scatterEnabled);
   toggleButton('b-ring', scatterEnabled);
+});
+
+$('b-quality')?.addEventListener('click', () => {
+  liteMode = !liteMode;
+  scene.setQuality(liteMode ? 'lite' : 'hd');
+  toggleButton('b-quality', liteMode);
+  const btn = $('b-quality');
+  if (btn) btn.textContent = liteMode ? '畫質：輕量 5MB' : '畫質：高清';
 });
 
 $('b-sound')?.addEventListener('click', () => {
