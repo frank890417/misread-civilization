@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<title>誤讀文明 — 聲音分軌離線輸出（MP3）</title>
+<style>
+  body{ font-family:ui-monospace,monospace; background:#0b0d12; color:#e9e4d8; padding:30px; line-height:1.7; }
+  h1{ font-size:18px; color:#e7c068; letter-spacing:.1em; }
+  .note{ color:#9a9486; font-size:13px; max-width:640px; }
+  button{ font:inherit; background:#15171f; color:#e9e4d8; border:1px solid rgba(231,192,104,.4);
+    border-radius:8px; padding:10px 18px; cursor:pointer; margin:6px 6px 6px 0; }
+  button:hover{ background:rgba(231,192,104,.18); }
+  #list{ margin-top:18px; }
+  .row{ display:flex; align-items:center; gap:12px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
+  .row .n{ width:220px; color:#e7c068; }
+  .row .s{ width:90px; color:#9a9486; }
+  a.dl{ color:#8fd0ff; }
+  #status{ margin-top:14px; color:#9a9486; font-size:13px; }
+</style>
+</head>
+<body>
+<h1>誤讀文明 — 聲音分軌離線輸出</h1>
+<div class="note">
+用 Tone.js 離線算繪（Tone.Offline），把即時聲音系統渲染成 MP3 檔，給非網頁平台整合。<br>
+分軌：<b>ambient_loop</b>（教堂背景，約 38 秒，可循環）＋ <b>10 顆物件觸發音</b>（一軌一個）。<br>
+點「全部渲染」→ 完成後逐軌下載，或「下載全部 (zip)」。
+</div>
+<div>
+  <button id="render">▶ 全部渲染</button>
+  <button id="zip" disabled>⬇ 下載全部 (zip)</button>
+</div>
+<div id="status">待命。</div>
+<div id="list"></div>
+
+<script type="importmap">
+{ "imports": {
+  "tone": "https://esm.sh/tone@14.9.17",
+  "lamejs": "https://esm.sh/@breezystack/lamejs@1.2.7",
+  "jszip": "https://esm.sh/jszip@3.10.1"
+}}
+</script>
+<script type="module">
+import * as Tone from 'tone';
+import * as lamejs from 'lamejs';
+import JSZip from 'jszip';
+import { MODELS } from './js/models.js';
+
+// ── 音樂內容（與 js/sound.js 同步）────────────────────────────────
+const PROG = [
+  ['D3','A3','F4','B4'], ['D3','A3','B4','C5'], ['G3','D4','F4','B4'], ['A3','E4','F4','B4'],
+];
+const CHANT = ['E4','G4','B4','B4','C5','B4','A4','B4'];
+const DORIAN = ['D','E','F','G','A','B','C'];
+// 全 29 顆物件：直接讀 models.js（10 hero 手工音色 + 19 extra 循環音色），id → [id, voice, note]
+const OBJECTS = MODELS.map(m => [m.id, m.sound.voice, m.sound.note]);
+
+function makeVoice(id){
+  switch(id){
+    case 'glass':     return new Tone.FMSynth({harmonicity:2.5,modulationIndex:7,oscillator:{type:'sine'},envelope:{attack:0.004,decay:1.4,sustain:0.05,release:1.8},modulation:{type:'sine'},modulationEnvelope:{attack:0.01,decay:0.4,sustain:0,release:0.3},volume:-12});
+    case 'glassSoft': return new Tone.FMSynth({harmonicity:1.5,modulationIndex:4,envelope:{attack:0.02,decay:1.0,sustain:0.1,release:2.2},volume:-13});
+    case 'marimba':   return new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.002,decay:0.5,sustain:0.0,release:0.6},volume:-8});
+    case 'metal':     return new Tone.MetalSynth({harmonicity:4.1,resonance:1200,octaves:1.2,envelope:{attack:0.002,decay:1.1,release:0.6},volume:-26});
+    case 'pluck':     return new Tone.PluckSynth({attackNoise:1.2,dampening:2600,resonance:0.92,volume:-4});
+    case 'organLow':  return new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.04,decay:0.6,sustain:0.5,release:2.4},volume:-16});
+    case 'am':        return new Tone.AMSynth({harmonicity:2.0,envelope:{attack:0.02,decay:0.8,sustain:0.2,release:1.6},volume:-12});
+    case 'air':       return new Tone.MonoSynth({oscillator:{type:'triangle'},filter:{Q:0.8,type:'lowpass'},filterEnvelope:{attack:0.08,decay:0.4,sustain:0.1,release:1.4,baseFrequency:380,octaves:1.6},envelope:{attack:0.06,decay:0.6,sustain:0.05,release:1.6},volume:-19});
+    case 'duo':       return new Tone.DuoSynth({vibratoAmount:0.3,harmonicity:1.5,voice0:{envelope:{attack:0.05,decay:0.4,sustain:0.3,release:1.5}},voice1:{envelope:{attack:0.08,decay:0.4,sustain:0.3,release:1.5}},volume:-18});
+    case 'bellLow':   return new Tone.FMSynth({harmonicity:1.41,modulationIndex:5,envelope:{attack:0.005,decay:2.2,sustain:0,release:2.4},volume:-10});
+    default:          return new Tone.Synth({volume:-10});
+  }
+}
+
+// ── 渲染：教堂背景 loop（全混音，可循環）─────────────────────────
+async function renderAmbient(seconds = 38){
+  const buf = await Tone.Offline(async () => {
+    const reverb = new Tone.Reverb({ decay:11, preDelay:0.05, wet:0.5 });
+    await reverb.ready;
+    reverb.toDestination();
+    const eq = new Tone.EQ3({ low:0, mid:0, high:-3, lowFrequency:250, highFrequency:3500 }).connect(reverb);
+    const bus = new Tone.Gain(0.8).connect(eq);
+
+    const padFilter = new Tone.Filter(1600,'lowpass').connect(bus);
+    const pad = new Tone.PolySynth(Tone.Synth, { oscillator:{type:'sawtooth'}, envelope:{attack:2.6,decay:1.6,sustain:0.85,release:5.4}, volume:-13 }).connect(padFilter);
+    const drone = new Tone.PolySynth(Tone.Synth, { oscillator:{type:'sine'}, envelope:{attack:3.5,decay:1,sustain:1,release:7}, volume:-26 }).connect(bus);
+    drone.triggerAttack(['D2','A2'], 0.1);
+    const choirChorus = new Tone.Chorus({frequency:1.1,delayTime:4,depth:0.8,wet:0.6}).start();
+    const choirVib = new Tone.Vibrato({frequency:5.2,depth:0.07});
+    const choirFormant = new Tone.Filter({type:'bandpass',frequency:950,Q:0.7});
+    const choir = new Tone.PolySynth(Tone.Synth, { oscillator:{type:'fatsawtooth',count:3,spread:28}, envelope:{attack:2.2,decay:1.4,sustain:0.85,release:4.5}, volume:-15 });
+    choir.chain(choirFormant, choirVib, choirChorus, bus);
+    const cantorChorus = new Tone.Chorus({frequency:0.8,delayTime:3,depth:0.5,wet:0.4}).start();
+    const cantor = new Tone.MonoSynth({ oscillator:{type:'sawtooth'}, filter:{type:'bandpass',Q:1.4}, filterEnvelope:{attack:0.25,decay:0.4,sustain:0.7,release:1.0,baseFrequency:600,octaves:2.2}, envelope:{attack:0.35,decay:0.5,sustain:0.85,release:1.4}, volume:-10 });
+    cantor.chain(cantorChorus, bus);
+    const emerge = new Tone.FMSynth({ harmonicity:3.01,modulationIndex:6, envelope:{attack:0.004,decay:1.8,sustain:0,release:2.0}, volume:-18 }).connect(bus);
+    const glitchFormant = new Tone.Filter({type:'bandpass',frequency:1000,Q:1.0});
+    const glitchCrush = new Tone.BitCrusher(5);
+    const glitchTame = new Tone.Filter({type:'lowpass',frequency:3000,Q:0.5});
+    const glitchSynth = new Tone.Synth({ oscillator:{type:'square'}, envelope:{attack:0.001,decay:0.06,sustain:0,release:0.05}, volume:-18 });
+    glitchSynth.chain(glitchFormant, glitchCrush, glitchTame, bus);
+
+    // 全部用絕對秒數排程（離線最可靠，不依賴 transport / Loop / Sequence）
+    const SECPM = 4 * 60 / 52;   // 秒/小節 ≈ 4.615（52bpm 4/4）
+    const CHORD = 2 * SECPM;     // 和絃每 2 小節 ≈ 9.23s
+    const HALF  = 2 * 60 / 52;   // 聖詠每音（半音符）≈ 2.31s
+    // 和絃床 + 人聲合唱（pad / choir）
+    for(let k=0; k*CHORD < seconds; k++){ const chord=PROG[k%PROG.length]; const t=0.1+k*CHORD;
+      pad.triggerAttackRelease(chord, CHORD*1.1, t, 0.62);
+      choir.triggerAttackRelease(chord.slice(-3), CHORD*1.1, t, 0.55); }
+    // 聖詠旋律 cantor（1 小節後起，C5 拉長加重）
+    for(let i=0; SECPM + i*HALF < seconds; i++){ const note=CHANT[i%CHANT.length]; const t=SECPM+i*HALF; const seven=note==='C5';
+      cantor.triggerAttackRelease(note, seven?HALF*2:HALF*0.95, t, seven?1.0:0.72); }
+    // sparkle 鐘聲
+    for(let m=2; m<seconds/SECPM; m+=3){ const n=DORIAN[(m*3)%7]+(4+(m%3)); emerge.triggerAttackRelease(n, 0.5, m*SECPM, 0.5); }
+    // glitch stutter
+    for(let m=4; m<seconds/SECPM; m+=5){ const base=CHANT[m%CHANT.length]; const t0=m*SECPM; for(let i=0;i<7;i++){ glitchSynth.triggerAttackRelease(Tone.Frequency(base).transpose([0,12,-12,7,5][i%5]), 0.05, t0 + i*0.05, 0.4); } }
+  }, seconds, 2);
+  return buf.get();
+}
+
+// ── 渲染：單一物件觸發音（含適度殘響，立體聲）────────────────────
+async function renderOneShot(voice, note, seconds = 2.8){
+  const buf = await Tone.Offline(async () => {
+    const reverb = new Tone.Reverb({ decay:3.5, preDelay:0.02, wet:0.3 });
+    await reverb.ready; reverb.toDestination();
+    const v = makeVoice(voice); v.connect(reverb); v.connect(Tone.getDestination());
+    const dur = (voice==='marimba'||voice==='pluck'||voice==='metal') ? '8n' : '2n';
+    v.triggerAttackRelease(note, dur, 0.06, 0.9);
+  }, seconds, 2);
+  return buf.get();
+}
+
+// ── 渲染：碎碎音粒（連續快速小音，碰小石頭觸發；seed 變體）──────────
+async function renderCrumble(seed = 0, seconds = 1.8){
+  const buf = await Tone.Offline(async () => {
+    const reverb = new Tone.Reverb({ decay:2, preDelay:0.01, wet:0.25 });
+    await reverb.ready; reverb.toDestination();
+    const tame = new Tone.Filter({ type:'lowpass', frequency:3000, Q:0.5 }).connect(reverb);
+    const grain = new Tone.Synth({ oscillator:{type:'triangle'}, envelope:{attack:0.001,decay:0.05,sustain:0,release:0.04}, volume:-12 }).connect(tame);
+    const reps = 10 + (seed % 5);   // 10–14 顆
+    let t = 0.03;
+    for(let i=0;i<reps;i++){
+      const deg = DORIAN[(i*3 + seed*2) % 7];
+      const oct = 5 + ((i + seed) % 2);
+      grain.triggerAttackRelease(deg+oct, 0.05, t, 0.32 + 0.28*(((i+seed)%3)/2));
+      t += 0.03 + 0.02*(((i*7 + seed) % 3));
+    }
+  }, seconds, 2);
+  return buf.get();
+}
+
+// ── 渲染：共鳴（累積觸碰彩蛋：合唱和弦 + 鐘聲灑落）─────────────────
+async function renderResonance(seconds = 4){
+  const buf = await Tone.Offline(async () => {
+    const reverb = new Tone.Reverb({ decay:7, preDelay:0.03, wet:0.45 });
+    await reverb.ready; reverb.toDestination();
+    const choirChorus = new Tone.Chorus({frequency:1.1,delayTime:4,depth:0.8,wet:0.6}).start();
+    const choirFormant = new Tone.Filter({type:'bandpass',frequency:950,Q:0.7});
+    const choir = new Tone.PolySynth(Tone.Synth, { oscillator:{type:'fatsawtooth',count:3,spread:28}, envelope:{attack:0.4,decay:1.4,sustain:0.7,release:2.5}, volume:-17 });
+    choir.chain(choirFormant, choirChorus, reverb);
+    const emerge = new Tone.FMSynth({ harmonicity:3.01,modulationIndex:6, envelope:{attack:0.004,decay:1.8,sustain:0,release:2.0}, volume:-14 }).connect(reverb);
+    const chord = PROG[0];                       // Dm6
+    choir.triggerAttackRelease(chord, 3, 0.05, 0.78);
+    chord.forEach((n,i)=> emerge.triggerAttackRelease(n, 1.6, 0.12 + i*0.13, 0.6));
+  }, seconds, 2);
+  return buf.get();
+}
+
+// ── AudioBuffer → MP3（lamejs）────────────────────────────────────
+function f2i16(f){ const o=new Int16Array(f.length); for(let i=0;i<f.length;i++){ let s=Math.max(-1,Math.min(1,f[i])); o[i]= s<0 ? s*0x8000 : s*0x7FFF; } return o; }
+function toMp3(ab, kbps=160){
+  const ch=Math.min(ab.numberOfChannels,2), sr=ab.sampleRate;
+  const enc=new lamejs.Mp3Encoder(ch, sr, kbps);
+  const L=f2i16(ab.getChannelData(0)); const R=ch>1?f2i16(ab.getChannelData(1)):null;
+  const blk=1152, out=[];
+  for(let i=0;i<L.length;i+=blk){ const l=L.subarray(i,i+blk); const r=R?R.subarray(i,i+blk):undefined;
+    const m=R?enc.encodeBuffer(l,r):enc.encodeBuffer(l); if(m.length)out.push(new Uint8Array(m)); }
+  const e=enc.flush(); if(e.length)out.push(new Uint8Array(e));
+  let len=out.reduce((a,b)=>a+b.length,0), u=new Uint8Array(len), o=0; for(const c of out){u.set(c,o);o+=c.length;} return u;
+}
+function b64(u8){ let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); }
+
+// ── 流程 ──────────────────────────────────────────────────────────
+const stems = {};               // name -> Uint8Array(mp3)
+window.__stemB64 = (name)=> stems[name] ? b64(stems[name]) : null;
+window.__stemChunk = (name, start, len)=> stems[name] ? b64(stems[name].subarray(start, start+len)) : null;
+window.__stemSize = (name)=> stems[name] ? stems[name].length : 0;
+window.__stemList = ()=> Object.keys(stems).map(n=>({name:n, bytes:stems[n].length}));
+
+const statusEl = document.getElementById('status');
+const listEl = document.getElementById('list');
+function addRow(name, u8){
+  const blob=new Blob([u8],{type:'audio/mpeg'}); const url=URL.createObjectURL(blob);
+  const row=document.createElement('div'); row.className='row';
+  row.innerHTML=`<span class="n">${name}.mp3</span><span class="s">${(u8.length/1024).toFixed(0)} KB</span>`;
+  const a=document.createElement('a'); a.className='dl'; a.href=url; a.download=name+'.mp3'; a.textContent='下載';
+  const au=document.createElement('audio'); au.controls=true; au.src=url; au.style.height='28px';
+  row.append(a, au); listEl.append(row);
+}
+
+async function renderAll(){
+  statusEl.textContent='渲染中… ambient_loop'; await new Promise(r=>setTimeout(r,30));
+  stems['ambient_loop']=toMp3(await renderAmbient(38)); addRow('ambient_loop', stems['ambient_loop']);
+  for(const [id,voice,note] of OBJECTS){
+    statusEl.textContent=`渲染中… ${id}`; await new Promise(r=>setTimeout(r,20));
+    stems['obj_'+id]=toMp3(await renderOneShot(voice,note)); addRow('obj_'+id, stems['obj_'+id]);
+  }
+  // 連續 seq 音：碎碎音粒 ×3 變體（碰小石頭）+ 共鳴（彩蛋）
+  for(let s=1;s<=3;s++){ statusEl.textContent=`渲染中… crumble_${s}`; await new Promise(r=>setTimeout(r,20));
+    stems['seq_crumble_'+s]=toMp3(await renderCrumble(s)); addRow('seq_crumble_'+s, stems['seq_crumble_'+s]); }
+  statusEl.textContent='渲染中… resonance'; await new Promise(r=>setTimeout(r,20));
+  stems['seq_resonance']=toMp3(await renderResonance()); addRow('seq_resonance', stems['seq_resonance']);
+  const total=Object.values(stems).reduce((a,b)=>a+b.length,0);
+  statusEl.textContent=`✅ 完成：${Object.keys(stems).length} 軌，合計 ${(total/1024/1024).toFixed(2)} MB`;
+  document.getElementById('zip').disabled=false;
+  window.__done=true;
+}
+document.getElementById('render').onclick=renderAll;
+document.getElementById('zip').onclick=async()=>{
+  const zip=new JSZip(); for(const [n,u] of Object.entries(stems)) zip.file(n+'.mp3', u);
+  const blob=await zip.generateAsync({type:'blob'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='misread-civilization-audio-stems.zip'; a.click();
+};
+window.__renderAll = renderAll;
+window.__renderResonance = async () => { const mp3 = toMp3(await renderResonance()); stems['seq_resonance']=mp3; addRow('seq_resonance', mp3); window.__resDone=true; return mp3.length; };
+</script>
+</body>
+</html>

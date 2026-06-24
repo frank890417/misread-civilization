@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>誤讀文明 — 聲音分軌試聽（34 軌）</title>
+<style>
+  body{ font-family:"Noto Sans TC",ui-sans-serif,system-ui,sans-serif; background:#0b0d12; color:#e9e4d8; margin:0; padding:28px; }
+  h1{ font-size:18px; color:#e7c068; letter-spacing:.08em; margin:0 0 4px; }
+  .sub{ color:#9a9486; font-size:13px; margin-bottom:22px; }
+  h2{ font-size:13px; color:#e7c068; letter-spacing:.12em; margin:26px 0 8px; border-bottom:1px solid rgba(231,192,104,.25); padding-bottom:4px; }
+  .row{ display:flex; align-items:center; gap:14px; padding:5px 0; }
+  .row .n{ width:200px; font-size:13px; color:#cfc8b6; }
+  .row .n b{ color:#e9e4d8; }
+  audio{ height:30px; }
+  .hint{ font-size:11px; color:#6a6457; margin-left:6px; }
+</style>
+</head>
+<body>
+<h1>誤讀文明 Misread Civilization — 聲音分軌試聽</h1>
+<div class="sub">34 軌：背景 ambient ×1 + 物件觸發音 ×29 + 連續 seq ×4。檔案在 <code>assets/audio/stems/</code>。</div>
+<div id="app"></div>
+
+<script>
+const BASE = 'assets/audio/stems/';
+const GROUPS = [
+  ['背景床（可循環）', [['ambient_loop','教堂和弦床 + organum + 合唱 + 聖詠 + glitch（38s）']]],
+  ['10 hero 物件（手工設計音色）', [
+    ['obj_phone','手機 · FM 玻璃鐘'],['obj_bottle','珍奶杯 · 馬林巴'],['obj_cube_blue','悠遊卡 · 金屬'],
+    ['obj_cube_painted','捷運 · 撥弦'],['obj_coral','AirPods · 柔 FM'],['obj_cluster','人孔蓋 · 低管風琴'],
+    ['obj_rock_purple','紅綠燈 · AM'],['obj_rock_lichen','塑膠袋 · 風聲'],['obj_rock_abstract','充電線 · DuoSynth'],
+    ['obj_rock_cracked','101 · 低鐘'],
+  ]],
+  ['19 額外物件（循環音色 + D Dorian 音高）', [
+    ['obj_clay_sculpture','黏土殘像'],['obj_lichen_rock','地衣石'],['obj_mineral_rock','礦脈'],['obj_mosaic_rock','碎磚馬賽克'],
+    ['obj_painted_rock','彩繪殘塊'],['obj_rock_a','彩石・甲'],['obj_rock_b','彩石・乙'],['obj_rock_c','彩石・丙'],
+    ['obj_rock_d','彩石・丁'],['obj_rock_e','彩石・戊'],['obj_rock_f','彩石・己'],['obj_rock_fragment','碎片'],
+    ['obj_rock_sculpture','殘雕'],['obj_cube_cracked','裂方'],['obj_rock_block','塊石'],['obj_clay_painted','彩繪黏土'],
+    ['obj_rock_pink','粉石'],['obj_rock_pink2','粉石・貳'],['obj_rock_lichen2','地衣石・貳'],
+  ]],
+  ['連續 seq 音', [
+    ['seq_crumble_1','碎碎音粒・變體 1（碰小石頭）'],['seq_crumble_2','碎碎音粒・變體 2'],['seq_crumble_3','碎碎音粒・變體 3'],
+    ['seq_resonance','共鳴（累積觸碰彩蛋）'],
+  ]],
+];
+const app = document.getElementById('app');
+for(const [title, items] of GROUPS){
+  const h = document.createElement('h2'); h.textContent = `${title}（${items.length}）`; app.append(h);
+  for(const [id, desc] of items){
+    const row = document.createElement('div'); row.className='row';
+    const n = document.createElement('div'); n.className='n'; n.innerHTML = `<b>${id}</b>`;
+    const au = document.createElement('audio'); au.controls = true; au.preload='none'; au.src = BASE + id + '.mp3';
+    const d = document.createElement('span'); d.className='hint'; d.textContent = desc;
+    row.append(n, au, d); app.append(row);
+  }
+}
+</script>
+</body>
+</html>
