@@ -1,35 +1,24 @@
 # 誤讀文明 Misread Civilization — 互動參考預覽
 
-> 共域座標 POST-TRIBE AR · three.js + Tone.js reference build  
-> 這不是最終 AR 檔，而是給製作團隊理解「漂浮石陣 / 點擊互動 / 音效觸發 / 網站整合」的可執行參考版。
+> 共域座標 POST-TRIBE AR · three.js + Tone.js reference build
+> 不是最終 AR 檔，而是給製作團隊理解「漂浮石陣 / 點擊互動 / 音效觸發 / 文字呈現 / 網站整合」的可執行參考版，並附上可直接拿去用的素材（GLB 模型、分軌音效、字型/字卡）。
 
-線上版：<https://frank890417.github.io/misread-civilization/>
-
-Repo：<https://github.com/frank890417/misread-civilization>
+- 線上版：<https://frank890417.github.io/misread-civilization/>
+- Repo：<https://github.com/frank890417/misread-civilization>
 
 ---
 
-## 快速查看
+## 三個頁面
 
-線上直接開 GitHub Pages 連結即可。
+| 頁面 | 用途 |
+|---|---|
+| `index.html` | 主互動預覽（漂浮石陣 + 點擊 + 即時 Tone.js 聲音 + 畫質切換） |
+| `audio-stems.html` | 聲音分軌**試聽頁**（直接播 `assets/audio/stems/` 的 34 軌 MP3） |
+| `audio-export.html` | 聲音**離線渲染器**（Tone.Offline → MP3，團隊想改音色可自行重出） |
 
-本機測試：
+本機看：`python3 -m http.server 8123 --bind 127.0.0.1` → 開 <http://127.0.0.1:8123>（或 double-click `serve.command`）。
 
-```bash
-python3 -m http.server 8123 --bind 127.0.0.1
-```
-
-然後開：<http://127.0.0.1:8123>
-
-也可以 double-click `serve.command`。
-
-操作方式：
-
-- 拖曳環視、滾輪縮放。
-- 點石頭：無重力推一下、發光、播放該物件音色、浮現考古誤讀字幕。
-- 第一次點擊會解鎖瀏覽器 AudioContext，聲音才會開始。
-- 場上石頭會自己慢慢飄入、飄出，像一個會呼吸的漂浮族群。
-- 右側製作參考說明會先顯示 5 秒，之後自動收合；可用底部「顯示說明」再次展開。
+**操作**：拖曳環視、滾輪縮放、點石頭（無重力推 + 發光 + 該物件音色 + 誤讀字幕）。首次點擊解鎖瀏覽器 AudioContext，聲音才開始。石頭會自己慢慢飄入/飄出。底部可切「畫質：高清 ⇄ 輕量」、聲音、石陣/散佈、觸發共鳴。
 
 ---
 
@@ -37,171 +26,101 @@ python3 -m http.server 8123 --bind 127.0.0.1
 
 ```text
 .
-├── index.html          # HTML shell + UI 文案 + importmap
-├── css/
-│   └── styles.css      # 所有介面與 HUD 樣式
+├── index.html            # 主互動預覽 + UI + importmap
+├── audio-stems.html      # 34 軌分軌試聽頁
+├── audio-export.html     # Tone.Offline 離線渲染器（產 MP3）
+├── css/styles.css        # 介面 / HUD 樣式
 ├── js/
-│   ├── main.js         # 啟動程式、按鈕事件、模組接線
-│   ├── scene.js        # three.js 場景、GLB 載入、互動、石頭進出
-│   ├── sound.js        # Tone.js 聲音系統
-│   └── models.js       # 29 顆模型資料、音色、誤讀字幕
+│   ├── main.js           # 啟動 + 按鈕事件 + 模組接線
+│   ├── scene.js          # three.js 場景、GLB 載入、互動、石頭進出、畫質切換
+│   ├── sound.js          # Tone.js 即時聲音系統
+│   └── models.js         # 29 顆模型資料（音色 / 音高 / 誤讀字幕）
 ├── assets/
-│   ├── glb/            # 壓縮後 GLB 模型
-│   ├── hdri/sky.png    # HDRI sky sphere / environment
-│   └── audio/          # 未來可放錄製聲音或 AI sampling 人聲
-└── serve.command       # macOS 本機預覽快捷
+│   ├── glb/              # 高清 GLB（29 顆，~203MB，meshopt + WebP 1024）
+│   ├── glb-lite/         # 輕量 GLB（29 顆，合計 4.52MB，draco + WebP，每顆 <0.2MB）
+│   ├── hdri/sky.png      # HDRI sky sphere / environment
+│   ├── audio/stems/      # 34 軌分軌 MP3 + _對應表.md
+│   └── text/             # 誤讀字幕文字方案素材（子集字型 + PNG 字卡 + 說明）
+└── serve.command         # macOS 本機預覽快捷
 ```
 
-這版已把原本單檔 `index.html` 拆成 CSS、3D、聲音、資料四塊，方便活動網站團隊接手或只拿其中一部分整合。
+單檔 `index.html` 已拆成 CSS / 3D / 聲音 / 資料四塊，方便團隊接手或只拿其中一部分整合。
+
+---
+
+## 互動設計
+
+### ① 分層渲染 + 畫質切換
+- 近景：可點擊的 3D 漂浮石。遠景：`assets/hdri/sky.png` 當 equirect sky sphere + 環境光。
+- 石頭材質壓成霧面（`roughness 0.97`、低 `envMapIntensity`），避免太亮/太塑膠。
+- **畫質切換**（底部「畫質」鈕）：高清 `assets/glb`（meshopt 幾何 + 1024 WebP）⇄ 輕量 `assets/glb-lite`（draco 幾何 + 1024 WebP，29 顆共 **4.52MB**）。兩種各自快取、即時重建族群。給活動網站/手機/低頻寬可用輕量版。
+
+### ② 動態族群（石頭飄入/飄出）
+- 29 顆 GLB。開場先載 12 種、clone 成約 22 顆。場上維持 18–28 顆。
+- 每隔數秒隨機一顆飄出去、一顆從場外飄進來（淡入淡出）。未載過的種類進場時 lazy-load。
+
+### ③ 點擊互動
+無重力推位移 + 自轉 + 縮放脈衝 + 暖色發光 + 誤讀字幕 + 對應物件音色；**小石頭**額外觸發快速「碎碎」音粒；累積觸碰達閾值 → **共鳴**彩蛋（全體脈衝 + 環境變色）。
+
+### ④ 聲音系統（`js/sound.js`，即時 Tone.js）
+- D Dorian 中古教堂和聲床：ADSR pad + 開五度 organum 低音 + **人聲合唱** + **聖詠旋律**（動機 2-4-6-6-[7]-6-5-6，凸顯第 6 音 B 的教堂感）。
+- **glitch 人聲扭曲**（呼應「AI 誤讀我們」）+ 偶現鐘聲 + 每物件不同音色 + 碎碎音粒。
+- 全程 ADSR；整體高頻過 EQ/filter 去尖銳；混音平衡讓和弦/旋律壓在 drone 之上。
+
+### ⑤ 誤讀字幕 / 文字呈現
+誤讀字幕＝作品命題本體。中文全字型進 AR 太重，已備**三方案素材**於 `assets/text/`（見該資料夾 README）：
+- **子集字型**（推薦）：思源宋體子集 **268KB woff2**，能在 AR live render、被 capture。
+- **PNG 字卡**：42 張古代發光字卡（透明底、~20KB/張），引擎只吃貼圖時用。
+- 純網頁文字：不建議（capture 沒字、命題不傳播）。
+
+---
+
+## 聲音分軌 MP3 輸出（給非網頁平台）
+
+製作平台跑不了即時 Tone.js → 提供**離線渲染好的 34 軌 MP3**（`assets/audio/stems/`，合計 ~2.5MB）：
+
+| 類別 | 檔案 | 說明 |
+|---|---|---|
+| 背景床 | `ambient_loop.mp3` | 教堂和弦床 38s，可循環 |
+| 物件觸發 ×29 | `obj_<id>.mp3` | 對應 `assets/glb/<id>.glb`；10 hero 手工音色 + 19 循環音色 |
+| 連續 seq ×4 | `seq_crumble_1/2/3.mp3`、`seq_resonance.mp3` | 碎碎音粒 3 變體（小石頭）+ 共鳴彩蛋 |
+
+對應關係見 `assets/audio/stems/_對應表.md`。要改音色/重出 → 開 `audio-export.html` 自行渲染下載。
 
 ---
 
 ## 整合到活動網站
 
-最簡單的方式是把整個 repo 當作一個靜態互動頁面嵌入或連出去。
+最簡單：整個 repo 當靜態互動頁嵌入或連出去。若整合進既有網站，搬：`index.html` 的 `#app`/HUD/importmap + `css/` + `js/` + `assets/glb`（或 `assets/glb-lite`）+ `assets/hdri/sky.png`（+ 視需要 `assets/audio`、`assets/text`）。
 
-若要整合進既有網站，可搬以下檔案：
-
-- `index.html` 裡的 `#app`、HUD、控制按鈕與 importmap。
-- `css/styles.css`
-- `js/main.js`、`js/scene.js`、`js/sound.js`、`js/models.js`
-- `assets/glb/` 與 `assets/hdri/sky.png`
-
-注意事項：
-
-- 目前使用 CDN importmap 載入 `three` 與 `tone`，沒有 build step。
-- 若對方網站已有 bundler，可把 importmap 改成 npm imports。
-- 由於瀏覽器限制，Tone.js 必須在真人點擊後才會出聲。不要在 page load 時自動播放。
-- GLB 路徑寫在 `js/models.js`：`assets/glb/<id>.glb`。若搬到不同目錄，改這裡即可。
-
----
-
-## 目前互動設計
-
-### 1. 分層渲染
-
-- 近景：可點擊的 3D 漂浮石。
-- 遠景：`assets/hdri/sky.png` 作為 equirect sky sphere，同時提供環境光。
-- 石頭材質統一壓成霧面：`roughness 0.97`、低 `envMapIntensity`，避免太亮或太塑膠。
-- 底部工具列使用全寬 scrim 漸層，確保亮天空背景下控制列與提示文字都可讀。
-
-### 2. 更多石頭與動態族群
-
-- 已納入 29 顆 GLB。
-- 開場先載 12 種模型，再 clone 成約 22 顆，避免一開始硬載 29 顆造成 Pages 太慢。
-- 場上族群維持在 18–28 顆之間。
-- 每隔數秒隨機讓一顆飄出去，另一顆從場外飄進來。
-- 尚未載過的模型會在進場時 lazy-load，所以種類會隨時間逐漸變多。
-
-### 3. 點擊互動
-
-點任一石頭會觸發：
-
-- 無重力推位移
-- 自轉加速
-- 縮放脈衝
-- 暖色發光
-- 誤讀字幕
-- 對應物件音色
-- 小石頭會額外觸發快速碎碎音粒
-
-### 4. 聲音系統
-
-`js/sound.js` 使用 Tone.js 合成：
-
-- D Dorian 教堂和聲床。
-- re-fa-la-do 加入 Dorian 第 6 音 B，保留 b7 C 的教堂色彩。
-- 聖詠動機：2-4-6-6-[7]-6-5-6。
-- organum 開五度低音。
-- 人聲合唱質感 pad。
-- glitch 人聲 stutter，呼應「AI 誤讀我們」。
-- 每個 hero 物件有不同音色與 ADSR。
-- 整體高頻已過 EQ / filter，避免方波或三角波太尖。
+注意：CDN importmap 載 `three`/`tone`，無 build step；若有 bundler 可改 npm imports。Tone.js 須真人點擊後才出聲（不要 page load 自動播放）。GLB 路徑在 `js/models.js`。
 
 ---
 
 ## 修改指南
 
-### 改模型、字幕、音色
-
-編輯 `js/models.js`。
-
-每個模型格式：
-
-```js
-M('phone', '手機', { voice: 'glass', note: 'A5' }, [
-  '供奉用的發光石板，疑似祈雨',
-  '部族隨身攜帶的靈魂容器',
-  '一種會自己亮起來的神諭',
-])
-```
-
-- `id` 對應 `assets/glb/<id>.glb`
-- `label` 用在載入文字與交接理解
-- `voice` 對應 `js/sound.js` 裡的音色
-- `note` 建議維持在 D Dorian：D E F G A B C
-- `misreads` 是點擊時出現的考古誤讀字幕
-
-### 改聲音
-
-編輯 `js/sound.js`。
-
-常改位置：
-
-- `PROG`：教堂和聲進行
-- `CHANT`：聖詠旋律
-- `makeVoice()`：每個物件的音色
-- `crumble()`：小石頭碎碎聲密度與速度
-- `EQ3` / `Filter`：整體刺耳程度與空氣感
-
-### 改 3D 行為
-
-編輯 `js/scene.js`。
-
-常改參數：
-
-```js
-const INITIAL_UNIQUE = 12;
-const INITIAL_POP = 22;
-const MIN_POP = 18;
-const MAX_POP = 28;
-const DRIFT_MS = 3400;
-const RES_TARGET = 18;
-```
-
-可調整開場載入種類、場上石頭密度、進出頻率與共鳴門檻。
-
-### 改 UI / 說明文字
-
-- 視覺樣式：`css/styles.css`
-- 右側說明面板與按鈕：`index.html`
+- **模型 / 字幕 / 音色**：`js/models.js`（`M(id, label, {voice, note}, [misreads])`；id 對應 `assets/glb/<id>.glb`；note 維持 D Dorian）。
+- **聲音**：`js/sound.js`（`PROG` 和聲 / `CHANT` 旋律 / `makeVoice()` 音色 / 混音 volume 平衡 / `EQ3`、`Filter`）。
+- **3D 行為**：`js/scene.js` 頂部常數（`INITIAL_UNIQUE` / `INITIAL_POP` / `MIN_POP` / `MAX_POP` / `DRIFT_MS` / `RES_TARGET`）。
+- **UI / 文案**：`css/styles.css` + `index.html`。
 
 ---
 
 ## 素材與大小
 
-- 原始 FBX 約 539MB，未放入 repo。
-- 目前 repo 放的是壓縮 GLB，總計約 203MB。
-- 每顆 GLB 約 3.7–9.7MB，單檔皆低於 GitHub 100MB 限制。
-- 壓縮管線：Tripo FBX → `assimp export` → `gltf-transform optimize`（meshopt + WebP）。
-
-若要進一步進 WebAR 或降低手機流量，可再做：
-
-- 貼圖降到 512px。
-- Draco / meshopt 參數再壓。
-- 幾何 simplify。
-- 只保留最終 10 hero，其他作遠景或 skybox。
+- 原始 Tripo FBX ~539MB（未進 repo）。高清 GLB ~203MB（meshopt + WebP 1024）。輕量 GLB 4.52MB（draco + simplify + WebP 1024）。
+- 壓縮管線：Tripo FBX → `assimp export` → `gltf-transform optimize`（高清 meshopt / 輕量 draco + `--simplify`）。
+- 音效 34 軌 ~2.5MB。文字字型 268KB / 字卡 820KB。
 
 ---
 
 ## 待辦建議
 
-- 依展場主視覺決定最終 10 hero 物件。
-- 把 Tone.js 合成人聲替換或疊加錄製 / AI sampling 的合唱素材。
-- 誤讀字幕做成外部 JSON，讓文案可由團隊直接維護。
-- 為活動網站加一個低效能模式：少量模型、關閉 HDRI、降低 pixel ratio。
-- 若要 AR 化，將 `assets/glb/` 中的模型再個別優化到目標平台限制。
+- 文字呈現定案（子集字型 or PNG 字卡）→ 哲宇可協助產字卡/字型，或開短會對標引擎能力。
+- 依展場主視覺定最終 10 hero 物件。
+- 若要把 Tone.js 合成換成錄製/AI sampling 人聲，放 `assets/audio/` 由 export 流程替換。
+- AR 化時把 `assets/glb-lite` 再依目標平台限制個別優化。
 
 ---
 
-three.js + Tone.js reference build · 2026-06
+_three.js + Tone.js reference build · 2026-06_

@@ -1,0 +1,215 @@
+{
+ "font_subset": "font/misread-subset.woff2",
+ "cards": [
+  {
+   "file": "phone_1.png",
+   "object": "phone",
+   "text": "供奉用的發光石板，疑似祈雨"
+  },
+  {
+   "file": "phone_2.png",
+   "object": "phone",
+   "text": "部族隨身攜帶的靈魂容器"
+  },
+  {
+   "file": "phone_3.png",
+   "object": "phone",
+   "text": "一種會自己亮起來的神諭"
+  },
+  {
+   "file": "bottle_1.png",
+   "object": "bottle",
+   "text": "貴族飲用聖水的容器"
+  },
+  {
+   "file": "bottle_2.png",
+   "object": "bottle",
+   "text": "內含珍珠的祭祀瓶"
+  },
+  {
+   "file": "bottle_3.png",
+   "object": "bottle",
+   "text": "裝載液態記憶的禮器"
+  },
+  {
+   "file": "cube_blue_1.png",
+   "object": "cube_blue",
+   "text": "通行靈界的藍色符印"
+  },
+  {
+   "file": "cube_blue_2.png",
+   "object": "cube_blue",
+   "text": "刷一下即可開門的咒石"
+  },
+  {
+   "file": "cube_blue_3.png",
+   "object": "cube_blue",
+   "text": "一塊被馴服的天空"
+  },
+  {
+   "file": "cube_painted_1.png",
+   "object": "cube_painted",
+   "text": "會說話的方形神龕"
+  },
+  {
+   "file": "cube_painted_2.png",
+   "object": "cube_painted",
+   "text": "內有小人居住的盒子"
+  },
+  {
+   "file": "cube_painted_3.png",
+   "object": "cube_painted",
+   "text": "集體移動用的記憶箱"
+  },
+  {
+   "file": "coral_1.png",
+   "object": "coral",
+   "text": "海神遺落的指骨化石"
+  },
+  {
+   "file": "coral_2.png",
+   "object": "coral",
+   "text": "塞進耳朵聆聽神諭的器官"
+  },
+  {
+   "file": "coral_3.png",
+   "object": "coral",
+   "text": "成對出現的微型圖騰"
+  },
+  {
+   "file": "cluster_1.png",
+   "object": "cluster",
+   "text": "部族集會堆疊的記憶石堆"
+  },
+  {
+   "file": "cluster_2.png",
+   "object": "cluster",
+   "text": "通往地底世界的封印"
+  },
+  {
+   "file": "cluster_3.png",
+   "object": "cluster",
+   "text": "大地的鈕扣"
+  },
+  {
+   "file": "rock_purple_1.png",
+   "object": "rock_purple",
+   "text": "長出紫色思想的冥想石"
+  },
+  {
+   "file": "rock_purple_2.png",
+   "object": "rock_purple",
+   "text": "指揮人群停與走的神祇"
+  },
+  {
+   "file": "rock_purple_3.png",
+   "object": "rock_purple",
+   "text": "會變色的命令之石"
+  },
+  {
+   "file": "rock_lichen_1.png",
+   "object": "rock_lichen",
+   "text": "時間在上面結痂的證物"
+  },
+  {
+   "file": "rock_lichen_2.png",
+   "object": "rock_lichen",
+   "text": "一種永不腐爛的祭祀布"
+  },
+  {
+   "file": "rock_lichen_3.png",
+   "object": "rock_lichen",
+   "text": "被風供奉了三百年"
+  },
+  {
+   "file": "rock_abstract_1.png",
+   "object": "rock_abstract",
+   "text": "某種已滅絕生物的脊椎"
+  },
+  {
+   "file": "rock_abstract_2.png",
+   "object": "rock_abstract",
+   "text": "傳遞生命能量的臍帶"
+  },
+  {
+   "file": "rock_abstract_3.png",
+   "object": "rock_abstract",
+   "text": "纏繞神明手腕的繩結"
+  },
+  {
+   "file": "rock_cracked_1.png",
+   "object": "rock_cracked",
+   "text": "憤怒之神捏碎的禱告"
+  },
+  {
+   "file": "rock_cracked_2.png",
+   "object": "rock_cracked",
+   "text": "曾經很高很高的祈願塔"
+  },
+  {
+   "file": "rock_cracked_3.png",
+   "object": "rock_cracked",
+   "text": "一節通天的彩色脊柱"
+  },
+  {
+   "file": "generic_1.png",
+   "object": "generic",
+   "text": "某種神祇的牙齒，已風化"
+  },
+  {
+   "file": "generic_2.png",
+   "object": "generic",
+   "text": "用途不明，可能與占卜有關"
+  },
+  {
+   "file": "generic_3.png",
+   "object": "generic",
+   "text": "被三百年的時間磨圓的禱告"
+  },
+  {
+   "file": "generic_4.png",
+   "object": "generic",
+   "text": "一塊記得太多的石頭"
+  },
+  {
+   "file": "generic_5.png",
+   "object": "generic",
+   "text": "疑似某次集體儀式的殘片"
+  },
+  {
+   "file": "generic_6.png",
+   "object": "generic",
+   "text": "當代人類拋棄的圖騰之一"
+  },
+  {
+   "file": "generic_7.png",
+   "object": "generic",
+   "text": "無法辨識，暫存於誤讀檔案"
+  },
+  {
+   "file": "generic_8.png",
+   "object": "generic",
+   "text": "據推測曾經會發光"
+  },
+  {
+   "file": "generic_9.png",
+   "object": "generic",
+   "text": "一個被誤讀成石頭的東西"
+  },
+  {
+   "file": "generic_10.png",
+   "object": "generic",
+   "text": "文明崩解時掉落的標點符號"
+  },
+  {
+   "file": "generic_11.png",
+   "object": "generic",
+   "text": "某種情緒的化石"
+  },
+  {
+   "file": "generic_12.png",
+   "object": "generic",
+   "text": "被風供奉、被雨翻譯的遺物"
+  }
+ ]
+}
